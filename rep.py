@@ -1,60 +1,17 @@
-import zmq
-import threading
-import time
+import zmq.green as zmq
+
 from random import choice, random
+import gevent
 
-__author__ = "Felipe Cruz <felipecruz@loogica.net>"
-__license__ = "MIT/X11"
+context = zmq.Context()
 
-class ClientTask(threading.Thread):
-    """ClientTask"""
-    def __init__(self):
-        threading.Thread.__init__ (self)
 
-    def run(self):
-        context = zmq.Context()
-        socket = context.socket(zmq.DEALER)
-        _id = random() * 100
-        identity = '%d' % (_id)
-        socket.setsockopt(zmq.IDENTITY, identity )
-        socket.connect('tcp://localhost:5570')
-        print 'Client %s started' % (identity)
-        poll = zmq.Poller()
-        poll.register(socket, zmq.POLLIN)
-        reqs = 0
-        while True:
-            for i in xrange(5):
-                sockets = dict(poll.poll(1000))
-                if socket in sockets:
-                    if sockets[socket] == zmq.POLLIN:
-                        msg = socket.recv()
-                        print 'Client %s received: %s\n' % (identity, msg)
-                        del msg
-            reqs = reqs + 1
-            print 'Req #%d sent..(%d)' % (reqs, _id)
-            socket.send('request #%d' % (reqs))
-
-        socket.close()
-        context.term()
-
-class ServerTask(threading.Thread):
-    """ServerTask"""
-    def __init__(self):
-        threading.Thread.__init__ (self)
-
-    def run(self):
-        context = zmq.Context()
+def ServerTask():
         frontend = context.socket(zmq.ROUTER)
         frontend.bind('tcp://*:5570')
 
         backend = context.socket(zmq.DEALER)
         backend.bind('inproc://backend')
-
-        workers = []
-        for i in xrange(5):
-            worker = ServerWorker(context)
-            worker.start()
-            workers.append(worker)
 
         poll = zmq.Poller()
         poll.register(frontend, zmq.POLLIN)
@@ -79,46 +36,36 @@ class ServerTask(threading.Thread):
                     frontend.send(sid, zmq.SNDMORE)
                     frontend.send(msg)
 
-        frontend.close()
-        backend.close()
-        context.term()
 
-class ServerWorker(threading.Thread):
-    """ServerWorker"""
-    def __init__(self, context):
-        threading.Thread.__init__ (self)
-        self.context = context
-        self.id = random() * 100
-
-    def run(self):
-        worker = self.context.socket(zmq.DEALER)
+def ServerWorker(context):
+        id = random() * 100
+        worker = context.socket(zmq.DEALER)
         worker.connect('inproc://backend')
-        print 'Worker %d started' % (self.id)
-        while True:
-            uuid = worker.recv()
-            sid = worker.recv()
-            msg = worker.recv()
-            print 'Worker %d received %s from %s' % (self.id, msg, uuid)
-            replies = choice(xrange(5))
-            for i in xrange(replies):
-                time.sleep(1/choice(range(1,10)))
-                worker.send(uuid, zmq.SNDMORE)
-                worker.send(sid, zmq.SNDMORE)
-                worker.send(msg)
+        print 'Worker %d started' % id
+        poll = zmq.Poller()
+        poll.register(worker, zmq.POLLIN)
+        reqs = 0
+        while 1:
+            workers = dict(poll.poll(100))
+            if worker in workers:
+                if workers[worker] == zmq.POLLIN:
+                    uuid = worker.recv()
+                    sid = worker.recv()
+                    msg = worker.recv()
+                    print 'Worker %d received %s from %s' % (id, msg, uuid)
+                    gevent.sleep(1/choice(range(1,10)))
+                    worker.send(uuid, zmq.SNDMORE)
+                    worker.send(sid, zmq.SNDMORE)
+                    worker.send(msg)
 
-            del msg
-
-        worker.close()
 
 def main():
     """main function"""
-    server = ServerTask()
-    server.start()
-    '''
-    for i in xrange(3):
-        client = ClientTask()
-        client.start()
-    '''
+    workers = []
+    for i in xrange(5):
+        worker = gevent.spawn(ServerWorker, context)
+        workers.append(worker)
+    server = gevent.spawn(ServerTask)
     server.join()
 
 if __name__ == "__main__":

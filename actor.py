@@ -3,6 +3,7 @@ from gevent import spawn
 import gevent
 import uuid
 
+
 class ActorManager(object):
     def __init__(self, msg_filter=''):
         self.db = {}
@@ -28,9 +29,8 @@ class ActorManager(object):
 
     def loop(self):
         spawn(self.__loop)
-        self.send('', Zmq.SNDMORE)
-        self.send('')
         print 'looping'
+
     def __loop(self):
         poll = Zmq.Poller()
         dealer = self.dealer
@@ -38,23 +38,24 @@ class ActorManager(object):
         poll.register(dealer, Zmq.POLLIN)
         poll.register(sub, Zmq.POLLIN)
         while True:
-            polldict = dict(poll.poll(100))
-            if sub in polldict:
-                if polldict[sub] == Zmq.POLLIN:
+            poll_dict = dict(poll.poll(100))
+            if sub in poll_dict:
+                if poll_dict[sub] == Zmq.POLLIN:
                     [sid, contents] = sub.recv_multipart()
                     a = self.find(sid)
                     if a:
                         a << contents
-            if dealer in polldict:
-                if polldict[dealer] == Zmq.POLLIN:
+            if dealer in poll_dict:
+                if poll_dict[dealer] == Zmq.POLLIN:
                     sid, contents = [dealer.recv() for i in xrange(2)]
-                    print 'dealer', sid, contents
+                    if sid:
+                        a = self.find(sid)
+                        if a:
+                            a << contents
 
-
-
-
-    def send(self, *arg):
-        self.dealer.send(*arg)
+    def send(self, *args):
+        dealer = self.dealer
+        dealer.send(*args)
 
     def destroy(self):
         self.sub.close()
@@ -72,17 +73,23 @@ class Actor(object):
         """
         sid = str(sid)
         Actor.manager.add(sid, self)
+        print '[', sid, ']', 'start'
         self.sid = sid
 
     def receive(self, contents):
+        #todo
         sid = self.sid
         print "[%s] %s\n" % (str(sid), contents)
 
     def __lshift__(self, other):
         self.receive(other)
 
-    def __send(self, *arg):
-        Actor.manager.send(*arg)
+    def __send(self, *frames):
+        send = Actor.manager.send
+        send(self.sid, Zmq.SNDMORE)
+        for frame in frames[:-1]:
+            send(frame, Zmq.SNDMORE)
+        send(frames[-1])
 
     def send(self, *arg):
         spawn(self.__send, *arg)
@@ -92,12 +99,14 @@ class Actor(object):
 
 Actor.manager.loop()
 
-for i in xrange(0, 1000):
-    #Too many open files
-    a = Actor(i)
-
 
 if __name__ == '__main__':
+    import random
+    for i in xrange(0, 10): #
+        #Too many open files
+        a = Actor(i)
+        if random.random() > 0.5:
+            a >> str(random.random())
     def run():
         while True:
             gevent.sleep(1)
