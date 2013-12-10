@@ -6,7 +6,7 @@ import gevent
 context = zmq.Context()
 
 
-def ServerTask():
+def broker():
         frontend = context.socket(zmq.ROUTER)
         frontend.bind('tcp://*:5570')
 
@@ -53,7 +53,7 @@ def ServerWorker(context):
                     sid = worker.recv()
                     msg = worker.recv()
                     print 'Worker %d received %s from %s' % (id, msg, uuid)
-                    gevent.sleep(1/choice(range(1,10)))
+                    #gevent.sleep(1/choice(range(1,10)))
                     worker.send(uuid, zmq.SNDMORE)
                     worker.send(sid, zmq.SNDMORE)
                     worker.send(msg)
@@ -65,7 +65,7 @@ def main():
     for i in xrange(5):
         worker = gevent.spawn(ServerWorker, context)
         workers.append(worker)
-    server = gevent.spawn(ServerTask)
+    server = gevent.spawn(broker)
     server.join()
 
 if __name__ == "__main__":

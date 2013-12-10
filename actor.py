@@ -39,19 +39,17 @@ class ActorManager(object):
         poll.register(sub, Zmq.POLLIN)
         while True:
             poll_dict = dict(poll.poll(100))
-            if sub in poll_dict:
-                if poll_dict[sub] == Zmq.POLLIN:
-                    [sid, contents] = sub.recv_multipart()
+            if sub in poll_dict and poll_dict[sub] == Zmq.POLLIN:
+                [sid, contents] = sub.recv_multipart()
+                a = self.find(sid)
+                if a:
+                    a << contents
+            if dealer in poll_dict and poll_dict[dealer] == Zmq.POLLIN:
+                sid, contents = [dealer.recv() for i in xrange(2)]
+                if sid:
                     a = self.find(sid)
                     if a:
                         a << contents
-            if dealer in poll_dict:
-                if poll_dict[dealer] == Zmq.POLLIN:
-                    sid, contents = [dealer.recv() for i in xrange(2)]
-                    if sid:
-                        a = self.find(sid)
-                        if a:
-                            a << contents
 
     def send(self, *args):
         dealer = self.dealer
