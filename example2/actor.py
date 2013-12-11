@@ -15,7 +15,7 @@ class ActorBroker(object):
         sub.setsockopt(Zmq.SUBSCRIBE, msg_filter)
         self.sub = sub
         dealer = ctx.socket(Zmq.DEALER)
-        dealer.setsockopt(Zmq.IDENTITY, self.uuid )
+        dealer.setsockopt(Zmq.IDENTITY, self.uuid)
         dealer.connect('tcp://localhost:5570')
         self.dealer = dealer
 
@@ -82,15 +82,12 @@ class Actor(object):
     def __lshift__(self, other):
         self.receive(other)
 
-    def __send(self, *frames):
+    def send(self, *frames):
         send = Actor.broker.send
         send(self.sid, Zmq.SNDMORE)
         for frame in frames[:-1]:
             send(frame, Zmq.SNDMORE)
         send(frames[-1])
-
-    def send(self, *arg):
-        spawn(self.__send, *arg)
 
     def __rshift__(self, other):
         self.send(other)
@@ -100,12 +97,11 @@ Actor.broker.loop()
 
 if __name__ == '__main__':
     import random
-    for i in xrange(0, 20): #
+    for i in xrange(0, 5): #
         #Too many open files
         a = Actor(i)
-        if random.random() > 0.5:
-            a >> str(random.random())
+        a >> str(random.choice(xrange(0, 5)))
     def run():
         while True:
-            gevent.sleep(1)
+            gevent.sleep(0)
     spawn(run).join()
