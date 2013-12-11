@@ -4,7 +4,7 @@ import gevent
 import uuid
 
 
-class ActorManager(object):
+class ActorBroker(object):
     def __init__(self, msg_filter=''):
         self.db = {}
         self.uuid = str(uuid.uuid4())[:16]
@@ -62,7 +62,7 @@ class ActorManager(object):
 
 
 class Actor(object):
-    manager = ActorManager()
+    broker = ActorBroker()
 
     def __init__(self, sid):
         """
@@ -70,7 +70,7 @@ class Actor(object):
         @rtype : Actor
         """
         sid = str(sid)
-        Actor.manager.add(sid, self)
+        Actor.broker.add(sid, self)
         print '[', sid, ']', 'start'
         self.sid = sid
 
@@ -83,7 +83,7 @@ class Actor(object):
         self.receive(other)
 
     def __send(self, *frames):
-        send = Actor.manager.send
+        send = Actor.broker.send
         send(self.sid, Zmq.SNDMORE)
         for frame in frames[:-1]:
             send(frame, Zmq.SNDMORE)
@@ -95,12 +95,12 @@ class Actor(object):
     def __rshift__(self, other):
         self.send(other)
 
-Actor.manager.loop()
+Actor.broker.loop()
 
 
 if __name__ == '__main__':
     import random
-    for i in xrange(0, 10): #
+    for i in xrange(0, 20): #
         #Too many open files
         a = Actor(i)
         if random.random() > 0.5:
