@@ -10,7 +10,7 @@ dealer <-> [router|router] <-> dealer
 
 example3:
 
-|      actor           |       broker    |  pub |
+|*****actor*********|       broker    |  pub |
 
 sub <-> [xpub | xsub] <-> [xpub | xsub] <-> pub
 
