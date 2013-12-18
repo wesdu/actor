@@ -1,15 +1,15 @@
-actor
+##actor##
 =====
-example1:
+###example1:###
 
-dealer <-> [router|dealer] <-> dealer
+    dealer <-> [router|dealer] <-> dealer
 
-example2:
+###example2:###
 
-dealer <-> [router|router] <-> dealer
+    dealer <-> [router|router] <-> dealer
 
-example3:
+###example3:###
 
->|         actor         |      broker     |  pub  |  
->sub <-> [xpub | xsub] <-> [xpub | xsub] <-> pub
+    |         actor        |      broker     |  pub  |  
+    sub <-> [xpub | xsub] <-> [xpub | xsub] <-> pub
 
