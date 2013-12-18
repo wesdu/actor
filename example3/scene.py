@@ -1,6 +1,5 @@
 import gevent
 import zmq.green as zmq
-from gevent import sleep
 import uuid
 
 context = zmq.Context()
@@ -35,6 +34,8 @@ class Scene(object):
                 if dealers[dealer] == zmq.POLLIN:
                     actor_broker_uuid, actor_sid, msg = dealer.recv_multipart()
                     print 'Scene %s received %s from %s' % (self.sid, msg, actor_sid)
+                    if actor_sid not in self.actors:
+                        self.actors.append(actor_sid)
                     dealer.send_multipart([actor_broker_uuid, actor_sid, msg])
 
     def pub(self, actor=0, msg='', broadcast=True):
@@ -53,5 +54,8 @@ if __name__ == "__main__":
     scene2 = Scene('2')
     def run():
         while 1:
-            gevent.sleep(0)
+            scene1.pub(msg="this is a broadcast from scene1")
+            gevent.sleep(5)
+            scene2.pub(msg="this is a broadcast from scene2")
+            gevent.sleep(5)
     gevent.spawn(run).join()

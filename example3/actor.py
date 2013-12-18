@@ -70,7 +70,7 @@ class Actor(object):
         self.sid = sid
         sub = Actor.broker.ctx.socket(Zmq.SUB)
         sub.connect('inproc://' + Actor.broker.uuid)
-        sub.setsockopt(Zmq.SUBSCRIBE, '')
+        sub.setsockopt(Zmq.SUBSCRIBE, sid)
         self.sub = sub
         self.loop()
 
@@ -82,7 +82,7 @@ class Actor(object):
             poll_dict = dict(poll.poll())
             if sub in poll_dict and poll_dict[sub] == Zmq.POLLIN:
                 [sid, contents] = sub.recv_multipart()
-                print sid, contents
+                print '[%s] recive broadcast `%s`' % (sid, contents)
 
     def loop(self):
         spawn(self.__loop)
@@ -92,7 +92,7 @@ class Actor(object):
         #todo
         sid = self.sid
         scene_sid, msg = contents
-        print '[%s] recive %s from scene %s' % (sid, msg, scene_sid)
+        print '[%s] recive `%s` from scene %s' % (sid, msg, scene_sid)
 
     def __lshift__(self, other):
         self.receive(other)
