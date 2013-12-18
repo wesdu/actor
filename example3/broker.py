@@ -10,7 +10,6 @@ def rrbroker():
         frontend.bind('tcp://*:5570')
 
         backend = context.socket(zmq.ROUTER)
-        #backend.bind('inproc://backend')
         backend.bind('tcp://*:5572')
         poll = zmq.Poller()
         poll.register(frontend, zmq.POLLIN)
@@ -20,20 +19,20 @@ def rrbroker():
             sockets = dict(poll.poll())
             if frontend in sockets:
                 if sockets[frontend] == zmq.POLLIN:
-                    uuid, sid, msg = [frontend.recv() for i in xrange(3)]
-                    print 'frontend -> (%s) (%s) (%s)' % (uuid, sid, msg)
-                    backend.send(msg, zmq.SNDMORE)
-                    backend.send(sid, zmq.SNDMORE)
-                    backend.send(uuid)
+                    actor_broker_uuid, actor_sid, scene_sid, msg = frontend.recv_multipart()
+                    print 'backend -> (%s, %s, %s, %s)' % (actor_broker_uuid, actor_sid, scene_sid, msg)
+                    backend.send(scene_sid, zmq.SNDMORE)
+                    backend.send(actor_broker_uuid, zmq.SNDMORE)
+                    backend.send(actor_sid, zmq.SNDMORE)
+                    backend.send(msg)
             if backend in sockets:
                 if sockets[backend] == zmq.POLLIN:
-                    uuid = backend.recv()
-                    sid = backend.recv()
-                    msg = backend.recv()
-                    print 'backend <- (%s) (%s) (%s)' % (uuid, sid, msg)
-                    frontend.send(msg, zmq.SNDMORE)
-                    frontend.send(sid, zmq.SNDMORE)
-                    frontend.send(uuid)
+                    scene_sid, actor_broker_uuid, actor_sid, msg = backend.recv_multipart()
+                    print 'frontend <- (%s, %s, %s, %s)' % (actor_broker_uuid, actor_sid, scene_sid, msg)
+                    frontend.send(actor_broker_uuid, zmq.SNDMORE)
+                    frontend.send(scene_sid, zmq.SNDMORE)
+                    frontend.send(actor_sid, zmq.SNDMORE)
+                    frontend.send(msg)
 
 
 def xxbroker():

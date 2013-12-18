@@ -1,8 +1,7 @@
-import zmq.green as Zmq
-from gevent import spawn
 import gevent
+import zmq.green as Zmq
 import uuid
-
+from gevent import spawn
 
 class ActorBroker(object):
     def __init__(self, msg_filter=''):
@@ -33,25 +32,25 @@ class ActorBroker(object):
 
     def loop(self):
         spawn(self.__loop)
-        print 'looping'
+        print 'ActorBroker looping'
 
     def __loop(self):
-        Zmq.device(Zmq.QUEUE, self.xpub, self.xsub)
+        spawn(Zmq.device, Zmq.QUEUE, self.xpub, self.xsub)
         poll = Zmq.Poller()
         dealer = self.dealer
         poll.register(dealer, Zmq.POLLIN)
         while True:
             poll_dict = dict(poll.poll())
             if dealer in poll_dict and poll_dict[dealer] == Zmq.POLLIN:
-                sid, contents = [dealer.recv() for i in xrange(2)]
-                if sid:
-                    a = self.find(sid)
+                scene_sid, actor_sid, contents = dealer.recv_multipart()
+                if actor_sid:
+                    a = self.find(actor_sid)
                     if a:
-                        a << contents
+                        a << [scene_sid, contents]
 
     def send(self, *args):
         dealer = self.dealer
-        dealer.send(*args)
+        dealer.send_multipart(*args)
 
     def destroy(self):
         self.dealer.close()
@@ -92,17 +91,15 @@ class Actor(object):
     def receive(self, contents):
         #todo
         sid = self.sid
-        print "[%s] %s\n" % (str(sid), contents)
+        scene_sid, msg = contents
+        print '[%s] recive %s from scene %s' % (sid, msg, scene_sid)
 
     def __lshift__(self, other):
         self.receive(other)
 
-    def send(self, *frames):
+    def send(self, frames):
         send = Actor.broker.send
-        send(self.sid, Zmq.SNDMORE)
-        for frame in frames[:-1]:
-            send(frame, Zmq.SNDMORE)
-        send(frames[-1])
+        send([self.sid] + frames)
 
     def __rshift__(self, other):
         self.send(other)
@@ -113,10 +110,12 @@ Actor.broker.loop()
 
 if __name__ == '__main__':
     import random
-    for i in xrange(0, 300):
+    for i in xrange(0, 10):
         #Too many open files
+        scene_sid = str(random.choice(xrange(1, 3)))
+        msg = str(random.choice(['a', 'b', 'c']))
         a = Actor(i)
-        a >> str(random.choice(xrange(0, 5)))
+        a >> [scene_sid, msg]
     def run():
         while True:
             gevent.sleep(0)

@@ -19,15 +19,9 @@ def ServerWorker(context, i):
             workers = dict(poll.poll(100))
             if worker in workers:
                 if workers[worker] == zmq.POLLIN:
-                    #uuid = worker.recv()
-                    sid = worker.recv()
-                    msg = worker.recv()
-                    print 'Worker %s received %s from %s' % (id, msg, sid)
-                    #gevent.sleep(1/choice(range(1,10)))
-                    #worker.send(uuid, zmq.SNDMORE)
-                    worker.send(sid, zmq.SNDMORE)
-                    worker.send(msg)
-
+                    actor_broker_uuid, actor_sid, msg = worker.recv_multipart()
+                    print 'Worker %s received %s from %s' % (id, msg, actor_sid)
+                    worker.send_multipart([actor_broker_uuid, actor_sid, msg])
 
 def main():
     """main function"""
